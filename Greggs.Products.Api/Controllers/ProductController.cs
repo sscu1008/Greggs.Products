@@ -1,9 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using Greggs.Products.Api.Models;
+﻿using CQRSDemoLibrary.Models;
+using CQRSDemoLibrary.Queries;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Greggs.Products.Api.Controllers;
 
@@ -11,6 +13,7 @@ namespace Greggs.Products.Api.Controllers;
 [Route("[controller]")]
 public class ProductController : ControllerBase
 {
+    [Obsolete("Products array is obsolete.")]
     private static readonly string[] Products = new[]
     {
         "Sausage Roll", "Vegan Sausage Roll", "Steak Bake", "Yum Yum", "Pink Jammie"
@@ -18,23 +21,39 @@ public class ProductController : ControllerBase
 
     private readonly ILogger<ProductController> _logger;
 
-    public ProductController(ILogger<ProductController> logger)
+    public IMediator _mediator { get; }
+
+    public ProductController(IMediator mediator, ILogger<ProductController> logger)
     {
+        _mediator = mediator;
         _logger = logger;
     }
 
     [HttpGet]
-    public IEnumerable<Product> Get(int pageStart = 0, int pageSize = 5)
+    public async Task<List<Product>> Get(int pageStart = 1, int pageSize = 5)
     {
-        if (pageSize > Products.Length)
-            pageSize = Products.Length;
+        _logger.LogInformation("ProductController ProductList called");
 
-        var rng = new Random();
-        return Enumerable.Range(1, pageSize).Select(index => new Product
+        return await _mediator.Send(
+           new GetProductListQuery()
+           {
+               pageStart = pageStart,
+               pageSize = pageSize
+           }
+           );
+    }
+
+    [HttpGet]
+    [Route("Latest")]
+    public async Task<List<Product>> Latest(int pageStart = 1, int pageSize = 5)
+    {
+        _logger.LogInformation("ProductController ProductListLatest called");
+        return await _mediator.Send(
+            new GetProductListLatestQuery()
             {
-                PriceInPounds = rng.Next(0, 10),
-                Name = Products[rng.Next(Products.Length)]
-            })
-            .ToArray();
+                pageStart = pageStart,
+                pageSize = pageSize
+            }
+            );
     }
 }
